@@ -1,25 +1,18 @@
----
-title: "Reproducible Research: Peer Assessment 1"
-author: "Paul Kavitz"
-date: "September 22, 2016"
-output: html_document
-keep_md: true
----
+################################################################
+##
+## Paul Kavitz
+## Reproducible Research
+## September 22, 2016
+##
+################################################################
 
-*******
 ## Loading and preprocessing the data
-Code for reading in the dataset and/or preprocessing the data.   
-**NOTE**: Since GitHub reposityory also contains the dataset for the assignment, this code does not download the data separately.
 
-```{r, echo=TRUE, message=FALSE}
-library(dplyr)       ## load necessary libraries
+library(dplyr)  ## load necessary libraries
 library(lubridate)
 library(ggplot2)
 library(lattice)
-options(scipen=999)  ## Suppress scientific notation
-```
 
-```{r, echo=TRUE}
 if (file.exists("activity.zip")) {
     unzip("activity.zip")
 } else {
@@ -33,15 +26,11 @@ if (file.exists("activity.csv")) {
     stop("Data not found.")
 }
 
-```
-
-*******
-## What is mean total number of steps taken per day?
-
-```{r echo=TRUE}
 dailytotal <- aggregate(steps~date, activity, sum)
 mediansteps <- median(dailytotal$steps)
 meansteps <- mean(dailytotal$steps)
+
+## What is mean total number of steps taken per day?
 
 dailyhist <- ggplot(dailytotal, aes(x=steps)) +
     xlab("Steps") + ylab("Days with given number of steps") +
@@ -52,20 +41,14 @@ dailyhist <- ggplot(dailytotal, aes(x=steps)) +
     scale_y_continuous(expand = c(0,0), limit = c(0,9.5),
                        breaks = seq(from =0, to=9.5, by=1))
 print(dailyhist)
-```
 
-Over the period of evaluation, the subject's median steps per day was **`r mediansteps`** and the mean steps per day was **`r round(meansteps,2)`**.
-
-*******
 ## What is the average daily activity pattern?
-1. Make a time series plot (i.e. type="l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)
-2. Which 5-minute interval, on average across all days in the dataset, contains the maximum number of steps?
-
-```{r echo=TRUE}
 intmean <- aggregate(steps~interval, activity, mean)
 maxavgsteps <- max(intmean$steps)
 maxavginterval <- intmean[which.max(intmean$steps), "interval"]
 maxlabel <- paste("Max average steps\n at interval ", maxavginterval)
+
+## Plot for Daily Activity Pattern
 
 dailypattern <- ggplot(intmean,
                        aes(x=interval, y=steps)) +
@@ -80,16 +63,20 @@ dailypattern <- ggplot(intmean,
                        expand = c(0,0), limit=c(0,220)) +
     ggtitle("Average Steps per Interval")
 print(dailypattern)
-```
 
-The maximum average steps occur at interval **`r maxavginterval`**.
-
-*******
 ## Imputing missing values
-Missing values (observations where steps=NA) are replaced with the rounded interval step mean for the entire observation period.  This code also differentiates between weekend and weekday dates in new variable *'weekperiod'*.
-```{r echo=TRUE}
+
 missingsteps <- sum(is.na(activity$steps))   ## Count # of NAs
 impactivity <- activity
+
+## Function for determining whether date is a weekday or weekend
+calcperiod <- function (d) {
+    if (weekdays(d) %in% c("Saturday", "Sunday")) {
+        return("Weekend")
+    } else {
+        return("Weekday")
+    }
+}
 
 for (i in 1:nrow(impactivity))
 {
@@ -97,18 +84,10 @@ for (i in 1:nrow(impactivity))
         impactivity[i,"steps"] <-
             round(intmean[intmean$interval==impactivity[i,"interval"],"steps"])
     }
+    impactivity[i,"weekperiod"] <- calcperiod(impactivity[i,"date"])
     next
 }
-```
-A total of **`r missingsteps`** observations from the raw activity dataset have missing values (coded as NA).
 
-The new dataset *'impactivity'* contains the imputed steps.
-```{r echo=TRUE}
-head(impactivity)
-```
-
-The revised histogram including imputed activity follows:
-```{r echo=TRUE}
 imputedtotal <- aggregate(steps~date, impactivity, sum)
 imputedmedian <- median(imputedtotal$steps)
 imputedmean <- mean(imputedtotal$steps)
@@ -122,28 +101,9 @@ imputedhist <- ggplot(dailytotal, aes(x=steps)) +
     scale_y_continuous(expand = c(0,0), limit = c(0,9.5),
                        breaks = seq(from =0, to=9.5, by=1))
 print(imputedhist)
-```
 
-Over the period of evaluation using imputed values, the subject's median steps per day was **`r imputedmedian`** and the mean steps per day was **`r round(imputedmean,2)`**.
-
-*******
 ## Are there differences in activity patterns between weekdays and weekends?
 
-The code for differentiating between weekday and weekend observations is included here.  While this would have been more efficient to perform during the imputation loop above, it is replicated here (inefficiently) to colocate code chunks with functional requirements of the assignment.
-```{r echo=TRUE}
-## Function for determining whether date is a weekday or weekend
-calcperiod <- function (d) {
-    if (weekdays(d) %in% c("Saturday", "Sunday")) {
-        return("Weekend")
-    } else {
-        return("Weekday")
-    }
-}
-for (i in 1:nrow(impactivity))
-{
-    impactivity[i,"weekperiod"] <- calcperiod(impactivity[i,"date"])
-    next
-}
 ## Use imputed dataset to contrast weekday and weekend activity pattern
 impactivity <- mutate(impactivity, weekperiod=factor(weekperiod))
 intmean2 <- aggregate(steps~interval+weekperiod, impactivity, mean)
@@ -153,5 +113,3 @@ par(mfcol = c(1,2))  ## Create canvas for two plots.
 print(xyplot(steps~interval | weekperiod, intmean2, layout=c(1,2), type="l",
              xlab="Interval", ylab="Number of steps",
              main="Daily Activity"))
-```
-
